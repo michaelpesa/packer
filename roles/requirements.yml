@@ -1,0 +1,4 @@
+- src: git+https://gitlab.home.lab/mpesa/rhel7_cis.git
+  name: rhel7_cis
+- src: git+https://gitlab.home.lab/mpesa/rhel8_cis.git
+  name: rhel8_cis

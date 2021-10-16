@@ -1,0 +1,37 @@
+---
+- hosts: localhost
+  gather_facts: false
+  vars:
+    config_file:
+      ubuntu2004: user-data
+      oraclelinux8: ks.cfg
+      freebsd13: installerconfig
+  tasks:
+    - name: Create temporary directory
+      tempfile:
+        state: directory
+      register: tmp
+
+    - name: Render template configuration file
+      template:
+        src: "{{ os }}/{{ config_file[os] }}.j2"
+        dest: "{{ tmp.path }}/{{ config_file[os] }}"
+        #src: "{{ os }}/user-data.j2"
+        #dest: "{{ tmp.path }}/user-data"
+      vars:
+        template_password: "{{ lookup('env', 'MACHINE_PASSWORD') }}"
+
+    - name: Create empty meta-data file
+      file:
+        path: "{{ tmp.path }}/meta-data"
+        state: touch
+      when: os == 'ubuntu2004'
+
+    - name: Build new VM template
+      command: 'packer build -force -on-error=abort {{ os }}/packer.json'
+      environment:
+        VMWARE_HOST: "{{ lookup('env', 'VMWARE_HOST') }}"
+        VMWARE_USER: "{{ lookup('env', 'VMWARE_USER') }}"
+        VMWARE_PASSWORD: "{{ lookup('env', 'VMWARE_PASSWORD') }}"
+        MACHINE_PASSWORD: "{{ lookup('env', 'MACHINE_PASSWORD') }}"
+        HTTP_DIRECTORY: "{{ tmp.path }}"

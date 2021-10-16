@@ -1,0 +1,108 @@
+{
+    "variables": {
+      "boot_wait": "2s",
+      "os_iso_path": "[ds218-ISOs] 17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso",
+      "vmware_tools_iso_path": "[ds218-ISOs] VMware-tools-windows-11.0.5-15389592.iso",
+      "winrm_password" : "packer",
+      "winrm_username" : "Administrator",
+      "vm_cpu_num": "2",
+      "vm_disk_size": "40960",
+      "vm_mem_size": "2048",
+      "vm_name": "windows2019-standard-new",
+      "vsphere_cluster": "Compute",
+      "vsphere_datacenter": "Glendale",
+      "vsphere_datastore": "vsanDatastore",
+      "vsphere_folder": "Templates",
+      "vsphere_network": "VLAN 50",
+      "vsphere_password": "vzer0$UPPER",
+      "vsphere_server": "vcenter.home.lab",
+      "vsphere_user": "administrator@vsphere.local"
+    },
+    "builders": [
+        {
+          "cluster": "{{user `vsphere_cluster`}}",
+          "convert_to_template": "true",
+          "datacenter": "{{user `vsphere_datacenter`}}",
+          "datastore": "{{user `vsphere_datastore`}}",
+          "username": "{{user `vsphere_user`}}",
+          "password": "{{user `vsphere_password`}}",
+          "vcenter_server": "{{user `vsphere_server`}}",
+          "insecure_connection": "true",
+          "vm_name": "{{ user `vm_name`}}",
+          "type": "vsphere-iso",
+          "folder": "{{user `vsphere_folder`}}",
+          "guest_os_type": "windows9Server64Guest",
+          "boot_command": ["<spacebar>"],
+          "boot_wait": "{{user `boot_wait`}}",
+          "CPUs": "{{user `vm_cpu_num`}}",
+          "RAM": "{{user `vm_mem_size`}}",
+          "RAM_reserve_all": false,
+          "firmware": "efi-secure",
+          "storage": [
+            {
+              "disk_size": "{{user `vm_disk_size`}}",
+              "disk_thin_provisioned": true
+            }
+          ],
+          "network_adapters": [
+            {
+              "network": "{{user `vsphere_network`}}",
+              "network_card": "vmxnet3"
+            }
+          ],
+          "http_directory": "http",
+          "iso_paths": [
+              "{{user `os_iso_path`}}",
+              "{{user `vmware_tools_iso_path`}}"
+          ],
+          "disk_controller_type": "pvscsi",
+          "communicator":"winrm",
+          "winrm_username": "{{user `winrm_username`}}",
+          "winrm_password": "{{user `winrm_password`}}",
+          "winrm_use_ssl": true,
+          "winrm_insecure": true,
+          "winrm_timeout": "4h",
+          "floppy_files": [
+            "scripts/autounattend.xml",
+            "scripts/vmtools.cmd"
+          ],
+          "shutdown_command": "shutdown /s /t 5 /f /d p:4:1 /c \"Template Shutdown\"",
+          "shutdown_timeout": "30m",
+          "vmx_data": {
+            "windows.vbs.enabled": "TRUE",
+            "uefi.secureBoot.enabled": "TRUE"
+          }
+        }
+    ],
+    "provisioners": [
+      {
+        "type": "powershell",
+        "scripts": ["scripts/setup.ps1"]
+      },
+      {
+        "type": "windows-restart",
+        "restart_timeout": "30m"
+      },
+      {
+        "type": "powershell",
+        "scripts": ["scripts/win-update.ps1"]
+      },
+      {
+        "type": "windows-restart",
+        "restart_timeout": "30m"
+      },
+      {
+        "type": "powershell",
+        "scripts": ["scripts/win-update.ps1"]
+      },
+      {
+        "type": "windows-restart",
+        "restart_timeout": "30m"
+      },
+      {
+        "type": "powershell",
+        "scripts": ["scripts/cleanup.ps1"],
+        "pause_before": "1m"
+      }
+    ]
+}

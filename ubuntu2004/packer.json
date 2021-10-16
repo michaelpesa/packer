@@ -1,0 +1,98 @@
+{
+  "builders": [
+    {
+      "boot_wait": "2s",
+      "boot_command": [
+        "<esc><wait>",
+        "<esc><wait>",
+        "linux /casper/vmlinuz --- autoinstall net.ifnames=0 biosdevname=0 ipv6.disable=1 ",
+	"\"ds=nocloud-net;seedfrom=http://{{.HTTPIP}}:{{.HTTPPort}}/\"<enter><wait>",
+        "initrd /casper/initrd<enter><wait>",
+        "boot<enter>"
+      ],
+      "http_directory": "{{user `http_directory`}}",
+      "ip_settle_timeout": "10m",
+      "cluster": "{{user `vsphere-cluster`}}",
+      "convert_to_template": "true",
+      "datacenter": "{{user `vsphere-datacenter`}}",
+      "datastore": "{{user `vsphere-datastore`}}",
+      "disk_controller_type": "pvscsi",
+      "folder": "{{user `vsphere-folder`}}",
+      "guest_os_type": "ubuntu64Guest",
+      "insecure_connection": "true",
+      "iso_paths": [
+        "{{user `iso_url`}}"
+      ],
+      "network_adapters": [
+        {
+          "network": "{{user `vsphere-network`}}",
+          "network_card": "vmxnet3"
+        }
+      ],
+      "notes": "Built via Packer",
+      "password": "{{user `vsphere-password`}}",
+      "ssh_username": "{{ user `ssh_username` }}",
+      "ssh_password": "{{ user `ssh_password` }}",
+      "CPUs": "{{user `vm-cpu-num`}}",
+      "CPU_hot_plug": true,
+      "RAM": "{{user `vm-mem-size`}}",
+      "RAM_hot_plug": true,
+      "RAM_reserve_all": false,
+      "firmware": "efi-secure",
+      "storage": [
+        {
+          "disk_size": "{{user `vm-disk-size`}}",
+          "disk_thin_provisioned": true
+        }
+      ],
+      "type": "vsphere-iso",
+      "username": "{{user `vsphere-user`}}",
+      "vcenter_server": "{{user `vsphere-server`}}",
+      "vm_name": "{{ user `vm-name`}}"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "mkdir -p /home/mpesa/.ssh",
+	"chown mpesa:mpesa /home/mpesa",
+	"chown mpesa:mpesa /home/mpesa/.ssh",
+	"chmod 700 /home/mpesa/.ssh",
+        "echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvK6JToF3Edu2W83xR5ew6yOwv9IdJzviAnZH7tM6pazLakhvDHL2ilHxuhENhbQLiSkfV08RmSl1uxGbmqm+Jwo0rlJdvjVueH9Kikz67fNM5/FX53veQquF/y8rJpVqnszOxnqM8+YYL0dH4s0YHQQnZv5fkgkob/foaBr7tbpX0DXR+HLVLGPpbqm54DjsNAeQLO5WVZUlz1VuNFwv5ihIjhUtDHsztwJ1p1ldlh2iim8W/KKWBdHApqTvPqBhPnFHLh3GGELoH11u1uulPcu1w97ddanTW9mQZOFPDmLEfZ4y1oxMyUJ9JCX9tStRJHamJK7pL+0n9X2Q77WPmwdpGuTC78Reywr84uBpKGUCpZMXL7XGMzL4hwVqbl6yd/2L66RPVV+ij8KBrLKMtkuCpXguf0ZGKXSqFc+8EVQkggckoFzj+1CpyNVULVB+BYTD0iUfFZaDyCJJkBJHO3Nc8C9N3oXvAbaC60YPTP909+K5sYyvCCM+z2ZIPqxE=' >> /home/mpesa/.ssh/authorized_keys"
+      ]
+    },
+    {
+      "type": "shell",
+      "scripts": [
+        "ubuntu2004/ubuntu2004_cis.sh"
+      ],
+      "execute_command" : "sudo -S bash -c '{{.Path}} vmware'"
+    },
+    {
+      "type": "shell",
+      "scripts": [
+        "ubuntu2004/sysprep.sh"
+      ],
+      "execute_command" : "sudo -S bash {{.Path}}"
+    }
+  ],
+  "variables": {
+    "iso_url": "[DS218-ISOs] ubuntu-20.04.2-live-server-amd64.iso",
+    "vm-cpu-num": "1",
+    "vm-disk-size": "40960",
+    "vm-mem-size": "2048",
+    "vm-name": "ubuntu2004-standard",
+    "vsphere-cluster": "Compute",
+    "vsphere-datacenter": "Glendale",
+    "vsphere-datastore": "vsanDatastore",
+    "vsphere-folder": "Templates",
+    "vsphere-network": "VLAN 50",
+    "vsphere-password": "{{ env `VMWARE_PASSWORD` }}",
+    "vsphere-server": "{{ env `VMWARE_HOST` }}",
+    "vsphere-user": "{{ env `VMWARE_USER` }}",
+    "ssh_username": "mpesa",
+    "ssh_password": "{{ env `MACHINE_PASSWORD` }}",
+    "http_directory": "{{ env `HTTP_DIRECTORY` }}"
+  }
+}

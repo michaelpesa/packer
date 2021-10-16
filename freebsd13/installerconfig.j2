@@ -1,0 +1,87 @@
+#PARTITIONS="da0"
+DISTRIBUTIONS="kernel.txz base.txz"
+export nonInteractive="YES"
+export ZFSBOOT_DISKS="da0"
+export ZFSBOOT_DATASETS="
+    /ROOT           mountpoint=none
+    /ROOT/default   mountpoint=/
+    /home           mountpoint=/home,devices=off
+    /tmp            mountpoint=/tmp,devices=off,setuid=off,exec=on
+    /usr            mountpoint=/usr
+    /usr/local      mountpoint=/usr/local
+    /var            mountpoint=/var
+    /var/audit      mountpoint=/var/audit
+    /var/log        mountpoint=/var/log
+    /var/tmp        mountpoint=/var/tmp,devices=off,setuid=off,exec=off
+"
+
+#!/bin/sh
+
+# Set time zone
+tzsetup America/Phoenix
+
+# Setup rc.conf location sentinel
+SSHD_RC_CONF_FILE=/etc/rc.conf.d/sshd
+SENDMAIL_RC_CONF_FILE=/etc/rc.conf.d/sendmail
+
+# Disable X11
+echo 'OPTIONS_UNSET+=X11' >> /etc/make.conf
+
+# Basic network options
+sysrc hostname=freebsd13-standard
+
+# Use DHCP to get the network configuration
+sysrc ifconfig_DEFAULT=SYNCDHCP
+
+# Enable sshd by default
+sysrc -f "$SSHD_RC_CONF_FILE" sshd_enable=YES
+# Disable DNS lookups by default to make SSH connect quickly
+sed -i '' -e 's/^#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config
+# Allow root logins during build.  Deactivated upon cleanup
+sed -i '' -e 's/^#PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Disable sendmail
+sysrc -f "$SENDMAIL_RC_CONF_FILE" sendmail_enable=NONE
+
+# Set secure umask
+sed -i '' -e 's/:umask=022:/:umask=027:/g' /etc/login.conf
+sed -i '' -e 's/umask 22/umask 27/g' /root/.cshrc
+
+# Set root's password
+echo '{{ template_password }}' | pw usermod root -h 0
+
+# Create an administrative non-root user
+echo '{{ template_password }}' | pw useradd -n mpesa -h 0 -m -s/bin/tcsh -G wheel
+mkdir -p /home/mpesa/.ssh
+chmod 700 /home/mpesa.ssh
+echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvK6JToF3Edu2W83xR5ew6yOwv9IdJzviAnZH7tM6pazLakhvDHL2ilHxuhENhbQLiSkfV08RmSl1uxGbmqm+Jwo0rlJdvjVueH9Kikz67fNM5/FX53veQquF/y8rJpVqnszOxnqM8+YYL0dH4s0YHQQnZv5fkgkob/foaBr7tbpX0DXR+HLVLGPpbqm54DjsNAeQLO5WVZUlz1VuNFwv5ihIjhUtDHsztwJ1p1ldlh2iim8W/KKWBdHApqTvPqBhPnFHLh3GGELoH11u1uulPcu1w97ddanTW9mQZOFPDmLEfZ4y1oxMyUJ9JCX9tStRJHamJK7pL+0n9X2Q77WPmwdpGuTC78Reywr84uBpKGUCpZMXL7XGMzL4hwVqbl6yd/2L66RPVV+ij8KBrLKMtkuCpXguf0ZGKXSqFc+8EVQkggckoFzj+1CpyNVULVB+BYTD0iUfFZaDyCJJkBJHO3Nc8C9N3oXvAbaC60YPTP909+K5sYyvCCM+z2ZIPqxE=' >> /home/mpesa/.ssh/authorized_keys
+
+# Reboot quickly, don't wait at the panic screen
+{
+	echo 'debug.trace_on_panic=1'
+	echo 'debug.debugger_on_panic=0'
+	echo 'kern.panic_reboot_wait_time=0'
+} >> /etc/sysctl.conf
+
+# The console is not interactive, so we might as well boot quickly
+sysrc -f /boot/loader.conf autoboot_delay=-1
+
+# Ensure that DNS is available before attempting to install packages
+dhclient vmx0
+
+# Install required packages
+pkg install -qy open-vm-tools-nox11
+pkg install -qy sudo
+
+# Allow members of wheel to sudo to root
+sed -i '' 's/^# \(%wheel ALL=(ALL) NOPASSWD: ALL\)/\1/g' /usr/local/etc/sudoers
+
+cat >> "$VMWARE_GUESTD_RC_CONF_FILE" <<- EOF
+vmware_guest_vmblock_enable="YES"
+vmware_guest_vmmemctl_enable="YES"
+vmware_guest_vmxnet_enable="YES"
+vmware_guest_enable="YES"
+EOF
+
+reboot
+

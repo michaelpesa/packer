@@ -1,0 +1,81 @@
+{
+  "builders": [
+    {
+      "type": "vsphere-iso",
+      "boot_command": [
+        "<esc><wait>",
+        "boot -s<enter>",
+        "<wait15s>",
+        "/bin/sh<enter><wait>",
+        "mdmfs -s 100m md /tmp<enter><wait>",
+        "dhclient -l /tmp/dhclient.lease.vmx0 vmx0<enter><wait5>",
+        "fetch -o /tmp/installerconfig http://{{ .HTTPIP }}:{{ .HTTPPort }}/installerconfig<enter><wait5>",
+        "bsdinstall script /tmp/installerconfig<enter>"
+      ],
+      "http_directory": "{{user `http_directory`}}",
+      "ssh_password": "{{ user `ssh_password` }}",
+      "ssh_username": "{{ user `ssh_username` }}",
+      "vm_name": "{{ user `vm_name`}}",
+      "convert_to_template": true,
+      "guest_os_type": "freebsd13_64Guest",
+      "iso_paths": [
+        "{{user `os_iso_url`}}"
+      ],
+      "network_adapters": [
+        {
+          "network": "{{user `vsphere_network`}}",
+          "network_card": "vmxnet3"
+        }
+      ],
+      "notes": "Built via Packer",
+      "CPUs": "{{user `vm_cpu_count`}}",
+      "CPU_hot_plug": true,
+      "RAM": "{{user `vm_mem_size`}}",
+      "RAM_hot_plug": true,
+      "RAM_reserve_all": false,
+      "disk_controller_type": "pvscsi",
+      "storage": [
+        {
+          "disk_size": "{{user `vm_disk_size`}}",
+          "disk_thin_provisioned": true
+        }
+      ],
+      "vcenter_server": "{{user `vsphere_server`}}",
+      "username": "{{user `vsphere_user`}}",
+      "password": "{{user `vsphere_password`}}",
+      "datacenter": "{{user `vsphere_datacenter`}}",
+      "cluster": "{{user `vsphere_cluster`}}",
+      "datastore": "{{user `vsphere_datastore`}}",
+      "folder": "{{user `vsphere_folder`}}",
+      "insecure_connection": "true"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "scripts": [
+        "freebsd13/harden.sh",
+        "freebsd13/sysprep.sh"
+      ],
+      "execute_command" : "sudo -S sh {{.Path}}"
+    }
+  ],
+  "variables": {
+    "os_iso_url": "[DS218-ISOs] FreeBSD-13.0-RC5-amd64-dvd1.iso",
+    "vm_cpu_count": "1",
+    "vm_disk_size": "40960",
+    "vm_mem_size": "2048",
+    "vm_name": "freebsd13-standard-new",
+    "vsphere_cluster": "Compute",
+    "vsphere_datacenter": "Glendale",
+    "vsphere_datastore": "vsanDatastore",
+    "vsphere_folder": "Templates",
+    "vsphere_network": "VLAN 50",
+    "vsphere_password": "{{ env `VMWARE_PASSWORD` }}",
+    "vsphere_server": "{{ env `VMWARE_HOST` }}",
+    "vsphere_user": "{{ env `VMWARE_USER` }}",
+    "ssh_username": "mpesa",
+    "ssh_password": "{{ env `MACHINE_PASSWORD` }}",
+    "http_directory": "{{ env `HTTP_DIRECTORY` }}"
+  }
+}

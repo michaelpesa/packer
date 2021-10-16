@@ -1,0 +1,88 @@
+{
+  "builders": [
+    {
+      "type": "vsphere-iso",
+      "boot_command": [
+        "e<down><down><leftCtrlOn>e<leftCtrlOff>",
+	      " text ks=http://{{.HTTPIP}}:{{.HTTPPort}}/ks.cfg net.ifnames=0 biosdevname=0",
+        "<leftCtrlOn>x<leftCtrlOff>"
+      ],
+      "http_directory": "{{user `http_directory`}}",
+      "ssh_password": "{{ user `ssh_password` }}",
+      "ssh_username": "{{ user `ssh_username` }}",
+      "vm_name": "{{ user `vm_name`}}",
+      "convert_to_template": true,
+      "guest_os_type": "oraclelinux8_64Guest",
+      "iso_paths": [
+        "{{user `os_iso_url`}}"
+      ],
+      "network_adapters": [
+        {
+          "network": "{{user `vsphere_network`}}",
+          "network_card": "vmxnet3"
+        }
+      ],
+      "notes": "Built via Packer",
+      "CPUs": "{{user `vm_cpu_count`}}",
+      "CPU_hot_plug": true,
+      "RAM": "{{user `vm_mem_size`}}",
+      "RAM_hot_plug": true,
+      "RAM_reserve_all": false,
+      "firmware": "efi-secure",
+      "disk_controller_type": "pvscsi",
+      "storage": [
+        {
+          "disk_size": "{{user `vm_disk_size`}}",
+          "disk_thin_provisioned": true
+        }
+      ],
+      "vcenter_server": "{{user `vsphere_server`}}",
+      "username": "{{user `vsphere_user`}}",
+      "password": "{{user `vsphere_password`}}",
+      "datacenter": "{{user `vsphere_datacenter`}}",
+      "cluster": "{{user `vsphere_cluster`}}",
+      "datastore": "{{user `vsphere_datastore`}}",
+      "folder": "{{user `vsphere_folder`}}",
+      "insecure_connection": "true"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "mkdir -p /home/mpesa/.ssh",
+        "echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvK6JToF3Edu2W83xR5ew6yOwv9IdJzviAnZH7tM6pazLakhvDHL2ilHxuhENhbQLiSkfV08RmSl1uxGbmqm+Jwo0rlJdvjVueH9Kikz67fNM5/FX53veQquF/y8rJpVqnszOxnqM8+YYL0dH4s0YHQQnZv5fkgkob/foaBr7tbpX0DXR+HLVLGPpbqm54DjsNAeQLO5WVZUlz1VuNFwv5ihIjhUtDHsztwJ1p1ldlh2iim8W/KKWBdHApqTvPqBhPnFHLh3GGELoH11u1uulPcu1w97ddanTW9mQZOFPDmLEfZ4y1oxMyUJ9JCX9tStRJHamJK7pL+0n9X2Q77WPmwdpGuTC78Reywr84uBpKGUCpZMXL7XGMzL4hwVqbl6yd/2L66RPVV+ij8KBrLKMtkuCpXguf0ZGKXSqFc+8EVQkggckoFzj+1CpyNVULVB+BYTD0iUfFZaDyCJJkBJHO3Nc8C9N3oXvAbaC60YPTP909+K5sYyvCCM+z2ZIPqxE=' >> /home/mpesa/.ssh/authorized_keys"
+      ]
+    },
+    {
+      "type": "ansible",
+      "playbook_file": "oraclelinux8/site.yml",
+      "user": "mpesa"
+    },
+    {
+      "type": "shell",
+      "scripts": [
+        "oraclelinux8/sysprep.sh"
+      ],
+      "execute_command" : "sudo -S bash {{.Path}}"
+    }
+  ],
+  "variables": {
+    "os_iso_url": "[DS218-ISOs] OracleLinux-R8-U3-x86_64-dvd.iso",
+    "vm_cpu_count": "1",
+    "vm_disk_size": "40960",
+    "vm_mem_size": "2048",
+    "vm_name": "oraclelinux8-standard-new",
+    "vsphere_cluster": "Compute",
+    "vsphere_datacenter": "Glendale",
+    "vsphere_datastore": "vsanDatastore",
+    "vsphere_folder": "Templates",
+    "vsphere_network": "VLAN 50",
+    "vsphere_password": "{{ env `VMWARE_PASSWORD` }}",
+    "vsphere_server": "{{ env `VMWARE_HOST` }}",
+    "vsphere_user": "{{ env `VMWARE_USER` }}",
+    "ssh_username": "mpesa",
+    "ssh_password": "{{ env `MACHINE_PASSWORD` }}",
+    "http_directory": "{{ env `HTTP_DIRECTORY` }}"
+  }
+}

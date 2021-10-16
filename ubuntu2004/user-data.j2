@@ -1,0 +1,153 @@
+#cloud-config
+autoinstall:
+  version: 1
+  early-commands:
+    - systemctl stop ssh
+  network:
+    network:
+      version: 2
+      ethernets:
+        eth0:
+          dhcp4: yes
+          dhcp-identifier: mac
+  identity:
+    hostname: ubuntu2004-standard
+    username: mpesa
+    password: {{ template_password | password_hash('sha512') }}
+  ssh:
+    allow-pw: true
+    install-server: true
+  locale: en_US
+  keyboard:
+    layout: us
+  storage:
+    version: 1
+    config:
+      - id: sda
+        type: disk
+        path: /dev/sda
+        name: disk0
+        ptable: gpt
+      - id: sda1
+        type: partition
+        size: 200MB
+        device: sda
+        flag: boot
+        name: efi_system_partition
+        grub_device: true
+      - id: sda2
+        type: partition
+        size: 1GB
+        device: sda
+        name: boot_partition
+      - id: sda3
+        type: partition
+        size: -1
+        device: sda
+        name: os_partition
+      - id: vg1
+        type: lvm_volgroup
+        name: vg1
+        devices:
+          - sda3
+      - id: root_lv
+        type: lvm_partition
+        name: root
+        volgroup: vg1
+        size: 10G
+      - id: var_lv
+        type: lvm_partition
+        name: var
+        volgroup: vg1
+        size: 8G
+      - id: var_log_lv
+        type: lvm_partition
+        name: var_log
+        volgroup: vg1
+        size: 4G
+      - id: var_log_audit_lv
+        type: lvm_partition
+        name: var_log_audit
+        volgroup: vg1
+        size: 2G
+      - id: var_tmp_lv
+        type: lvm_partition
+        name: var_tmp
+        volgroup: vg1
+        size: 4G
+      - id: home_lv
+        type: lvm_partition
+        name: home
+        volgroup: vg1
+        size: 2G
+      - id: esp_fs
+        type: format
+        fstype: fat32
+        volume: sda1
+      - id: boot_fs
+        type: format
+        fstype: ext4
+        volume: sda2
+      - id: root_fs
+        type: format
+        fstype: ext4
+        volume: root_lv
+      - id: var_fs
+        type: format
+        fstype: ext4
+        volume: var_lv
+      - id: var_log_fs
+        type: format
+        fstype: ext4
+        volume: var_log_lv
+      - id: var_log_audit_fs
+        type: format
+        fstype: ext4
+        volume: var_log_audit_lv
+      - id: var_tmp_fs
+        type: format
+        fstype: ext4
+        volume: var_tmp_lv
+      - id: home_fs
+        type: format
+        fstype: ext4
+        volume: home_lv
+      - id: root_mount
+        type: mount
+        path: /
+        device: root_fs
+      - id: boot_mount
+        type: mount
+        path: /boot
+        device: boot_fs
+      - id: esp_mount
+        type: mount
+        path: /boot/efi
+        device: esp_fs
+      - id: var_mount
+        type: mount
+        path: /var
+        device: var_fs
+      - id: var_log_mount
+        type: mount
+        path: /var/log
+        device: var_log_fs
+      - id: var_log_audit_mount
+        type: mount
+        path: /var/log/audit
+        device: var_log_audit_fs
+      - id: var_tmp_mount
+        type: mount
+        path: /var/tmp
+        device: var_tmp_fs
+      - id: home_mount
+        type: mount
+        path: /home
+        device: home_fs
+  user-data:
+    disable_root: false
+  late-commands:
+    - "sed -i 's/^%sudo.*$/%sudo ALL=(ALL:ALL) NOPASSWD: ALL/g' /target/etc/sudoers"
+    - sed -ie 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX="net.ifnames=0 ipv6.disable=1 biosdevname=0"/' /target/etc/default/grub
+    - curtin in-target --target /target update-grub2
+    - curtin in-target --target /target -- apt -y purge multipath-tools alsa*
